@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import readline from 'readline';
 import chalk from 'chalk';
-import type { Plugin } from 'vite';
+import type { Plugin, ResolvedConfig } from 'vite';
 
 /**
  * 插件配置选项类型定义
@@ -21,15 +21,22 @@ export interface AutoDeployOptions {
   privateKey?: string;
   /** 传输方式（scp/rsync，默认：scp） */
   transport?: 'scp' | 'rsync';
+  /** 本地构建目录（默认使用 Vite 的 build.outDir） */
+  localDist?: string;
+  /** 是否跳过交互确认并直接部署（适用于 CI） */
+  autoConfirm?: boolean;
 }
 
-/**
- * Vite 自动部署插件
- * @param options 部署配置
- * @returns Vite 插件对象
- */
-export default function viteAutoDeploy(options: AutoDeployOptions): Plugin {
-  // 1. 校验必填参数（手动确保核心参数存在）
+type NormalizedOptions = AutoDeployOptions & {
+  remoteUser: string;
+  remotePort: string;
+  transport: 'scp' | 'rsync';
+  backupDir: string;
+  localDist: string;
+  autoConfirm: boolean;
+};
+
+const normalizeOptions = (options: AutoDeployOptions): NormalizedOptions => {
   if (!options.remoteIp) {
     throw new Error(chalk.red('❌ 缺少必填配置：remoteIp（服务器 IP）'));
   }
@@ -37,20 +44,27 @@ export default function viteAutoDeploy(options: AutoDeployOptions): Plugin {
     throw new Error(chalk.red('❌ 缺少必填配置：remoteDir（服务器目标目录）'));
   }
 
-  // 2. 合并默认配置（保留可选属性的灵活性）
-  const config: AutoDeployOptions & {
-    // 补充默认值，同时允许可选属性为 undefined
-    remoteUser: string;
-    remotePort: string;
-    transport: 'scp' | 'rsync';
-    backupDir: string;
-  } = {
-    remoteUser: 'root',
-    remotePort: '22',
-    transport: 'scp',
-    backupDir: `${options.remoteDir}_backups`,
+  return {
+    remoteUser: options.remoteUser ?? 'root',
+    remotePort: options.remotePort ?? '22',
+    transport: options.transport ?? 'scp',
+    backupDir: options.backupDir ?? `${options.remoteDir}_backups`,
+    localDist: options.localDist ?? 'dist',
+    autoConfirm: options.autoConfirm ?? false,
     ...options,
   };
+};
+
+/**
+ * Vite 自动部署插件
+ * @param options 部署配置
+ * @returns Vite 插件对象
+ */
+export default function viteAutoDeploy(options: AutoDeployOptions): Plugin {
+  const config = normalizeOptions(options);
+
+  let resolvedConfig: ResolvedConfig | null = null;
+  let buildOutputDir = config.localDist;
 
   /**
    * 构建 SSH 基础命令（支持私钥登录）
@@ -81,15 +95,26 @@ export default function viteAutoDeploy(options: AutoDeployOptions): Plugin {
   return {
     name: 'vite-plugin-auto-deploy',
 
-    // 构建完成后执行部署（Vite 构建钩子）
-    async buildEnd() {
-      const confirmed = await askForConfirmation('构建已完成，是否立即部署到远程服务器？');
-      if (!confirmed) {
-        console.log(chalk.yellow('⏹️ 已取消部署。'));
+    configResolved(resolved) {
+      resolvedConfig = resolved;
+      buildOutputDir = config.localDist || resolved.build.outDir || 'dist';
+    },
+
+    // 构建完成后执行部署（仅在 build 命令且打包成功时触发）
+    async closeBundle() {
+      if (!resolvedConfig || resolvedConfig.command !== 'build') {
         return;
       }
 
-      console.log(chalk.blue('\n🚀 开始自动部署...'));
+      if (config.autoConfirm !== true) {
+        const userConfirmed = await askForConfirmation('构建已完成，是否立即部署到远程服务器？');
+        if (!userConfirmed) {
+          console.log(chalk.yellow('⏹️ 已取消部署。'));
+          return;
+        }
+      }
+
+      console.log(chalk.blue('\n🚀 开始部署...'));
 
       try {
         // 1. 生成备份文件名（时间戳格式：2025-11-07-12-34-56）
@@ -115,12 +140,12 @@ export default function viteAutoDeploy(options: AutoDeployOptions): Plugin {
           // SCP 传输命令
           transferCmd = `scp -r -P ${config.remotePort}`;
           if (config.privateKey) transferCmd += ` -i ${config.privateKey}`;
-          transferCmd += ` ./dist ${config.remoteUser}@${config.remoteIp}:${config.remoteDir}`;
+          transferCmd += ` ./${buildOutputDir} ${config.remoteUser}@${config.remoteIp}:${config.remoteDir}`;
         } else if (config.transport === 'rsync') {
           // Rsync 传输命令
           transferCmd = `rsync -avz -e "ssh -p ${config.remotePort} ${
             config.privateKey ? `-i ${config.privateKey}` : ''
-          }" ./dist ${config.remoteUser}@${config.remoteIp}:${config.remoteDir}`;
+          }" ./${buildOutputDir} ${config.remoteUser}@${config.remoteIp}:${config.remoteDir}`;
         }
 
         execSync(transferCmd, { stdio: 'inherit' });
@@ -141,20 +166,7 @@ export default function viteAutoDeploy(options: AutoDeployOptions): Plugin {
 
 // 回滚函数
 export async function rollback(options: AutoDeployOptions) {
-  // 1. 初始化配置（同部署逻辑）
-  if (!options.remoteIp) throw new Error(chalk.red('❌ 缺少 remoteIp'));
-  if (!options.remoteDir) throw new Error(chalk.red('❌ 缺少 remoteDir'));
-
-  const config: AutoDeployOptions & {
-    remoteUser: string;
-    remotePort: string;
-    backupDir: string;
-  } = {
-    remoteUser: 'root',
-    remotePort: '22',
-    backupDir: `${options.remoteDir}_backups`,
-    ...options,
-  };
+  const config = normalizeOptions(options);
 
   const sshBase = `ssh -p ${config.remotePort} ${
     config.privateKey ? `-i ${config.privateKey} ` : ''
