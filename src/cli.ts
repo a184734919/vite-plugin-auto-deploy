@@ -1,4 +1,7 @@
-#!/usr/bin/env node
+
+import { register } from 'ts-node';
+register({ compilerOptions: { module: 'CommonJS' } }); // 注册 TS 解析
+
 import { program } from 'commander';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';

@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import readline from 'readline';
 import chalk from 'chalk';
 import type { Plugin } from 'vite';
 
@@ -62,11 +63,32 @@ export default function viteAutoDeploy(options: AutoDeployOptions): Plugin {
     return `${cmd} ${config.remoteUser}@${config.remoteIp}`;
   };
 
+  const askForConfirmation = async (message: string): Promise<boolean> => {
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      console.log(chalk.yellow('⚠️ 当前环境不支持交互式确认，已跳过部署。'));
+      return false;
+    }
+
+    return await new Promise<boolean>((resolve) => {
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      rl.question(`${message} (y/N): `, (answer) => {
+        rl.close();
+        resolve(/^y(es)?$/i.test(answer.trim()));
+      });
+    });
+  };
+
   return {
     name: 'vite-plugin-auto-deploy',
 
     // 构建完成后执行部署（Vite 构建钩子）
-    buildEnd() {
+    async buildEnd() {
+      const confirmed = await askForConfirmation('构建已完成，是否立即部署到远程服务器？');
+      if (!confirmed) {
+        console.log(chalk.yellow('⏹️ 已取消部署。'));
+        return;
+      }
+
       console.log(chalk.blue('\n🚀 开始自动部署...'));
 
       try {
