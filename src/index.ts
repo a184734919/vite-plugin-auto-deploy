@@ -92,8 +92,9 @@ export default function viteAutoDeploy(options: AutoDeployOptions): Plugin {
     });
   };
 
-  return {
+  const plugin: Plugin & { __autoDeployOptions: NormalizedOptions } = {
     name: 'vite-plugin-auto-deploy',
+    __autoDeployOptions: config,
 
     configResolved(resolved) {
       resolvedConfig = resolved;
@@ -159,6 +160,10 @@ export default function viteAutoDeploy(options: AutoDeployOptions): Plugin {
       }
     },
   };
+
+  plugin.__autoDeployOptions = config;
+
+  return plugin;
 }
 
 
