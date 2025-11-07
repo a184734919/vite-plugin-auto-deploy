@@ -93,7 +93,7 @@ export default function viteAutoDeploy(options: AutoDeployOptions): Plugin {
   };
 
   const plugin: Plugin & { __autoDeployOptions: NormalizedOptions } = {
-    name: 'vite-plugin-auto-deploy',
+    name: 'vite-plugin-auto-deploy-plus',
     __autoDeployOptions: config,
 
     configResolved(resolved) {

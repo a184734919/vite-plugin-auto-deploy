@@ -1,5 +1,5 @@
 {
-  "name": "vite-plugin-auto-deploy",
+  "name": "vite-plugin-auto-deploy-plus",
   "version": "1.3.0",
   "bin": {
     "vite-deploy": "./dist/cli.js"

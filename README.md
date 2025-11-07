@@ -1,4 +1,4 @@
-# vite-plugin-auto-deploy
+# vite-plugin-auto-deploy-plus
 
 一个针对 Vite 项目的自动部署与回滚插件。支持在打包完成后备份远程旧版本、上传新版本，并提供交互式确认与命令行回滚能力。
 
@@ -13,7 +13,7 @@
 ## 安装
 
 ```bash
-pnpm add -D vite-plugin-auto-deploy
+pnpm add -D vite-plugin-auto-deploy-plus
 # 或者使用 npm / yarn
 ```
 
@@ -23,7 +23,7 @@ pnpm add -D vite-plugin-auto-deploy
 
 ```ts
 import { defineConfig } from 'vite';
-import viteAutoDeploy from 'vite-plugin-auto-deploy';
+import viteAutoDeploy from 'vite-plugin-auto-deploy-plus';
 
 export default defineConfig({
   plugins: [
@@ -90,7 +90,7 @@ CLI 将自动读取 `vite.config.[ts|js]` 中的插件配置，列出备份并�
 也可以在代码中手动调用：
 
 ```ts
-import { rollback } from 'vite-plugin-auto-deploy';
+import { rollback } from 'vite-plugin-auto-deploy-plus';
 
 await rollback({
   remoteIp: '1.2.3.4',

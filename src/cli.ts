@@ -110,7 +110,7 @@ program
       ? resolvedConfig.plugins
       : [];
 
-    const deployPlugin = plugins.find((p: any) => p?.name === 'vite-plugin-auto-deploy');
+    const deployPlugin = plugins.find((p: any) => p?.name === 'vite-plugin-auto-deploy-plus');
 
     const deployOptions = deployPlugin?.__autoDeployOptions ?? deployPlugin?.options;
 
