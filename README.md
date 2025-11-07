@@ -27,12 +27,17 @@ import viteAutoDeploy from 'vite-plugin-auto-deploy-plus';
 
 export default defineConfig({
   plugins: [
-    viteAutoDeploy({
-      remoteIp: '1.2.3.4',
-      remoteDir: '/var/www/app',
-      transport: 'scp',
-      autoConfirm: false,
-    }),
+    autoDeploy({
+				// 👇 填写你的服务器ip和项目存放路径（必填项）
+				remoteIp: 'xxx.xx.xxx.xxx', // 服务器 IP 地址
+				remoteDir: '/app/project', // 服务器上存放项目的目录（如 /app/project） 则会把打包的dist文件夹放在/app/project项目下
+				// 👇 可选配置
+				remoteUser: 'root', // 服务器用户名（默认 root）
+				remotePort: '22', // SSH 端口（默认 22）
+				backupDir: '', // 备份目录（默认自动生成）
+				privateKey: '/Users/yourname/.ssh/id_rsa', // 若用密钥登录，填写私钥路径 也可以自己生成上传至服务器 否则每次上传文件的时候服务器都会要求输入密码
+				transport: 'scp', // 传输方式（scp 或 rsync，默认 scp）
+			}),
   ],
 });
 ```
@@ -66,10 +71,6 @@ export default defineConfig({
 1. 确保项目中已正确配置插件（与部署时使用的配置一致）。
 2. 在项目根目录执行：
 
-```bash
-npx vite-deploy rollback
-```
-
 CLI 将自动读取 `vite.config.[ts|js]` 中的插件配置，列出备份并默认回滚到最新备份。
 
 如果 Vite 配置文件不在项目根目录，可通过 `--config` 指定：
@@ -99,10 +100,4 @@ await rollback({
 ```
 
 > 仅当远程服务器中存在通过插件生成的备份文件时，回滚才会生效。
-
-## 常见问题
-
-- **为何没有出现部署询问？** 确认是否在执行 `vite build` 且终端支持交互；在 `vite dev` 模式下插件不会部署。
-- **需要自动部署怎么办？** 将 `autoConfirm` 设为 `true`，或在 CI 环境中设置对应环境变量并在配置中读取。
-- **备份目录太多怎么办？** 备份文件会保存在服务器的 `backupDir` 下，可自行编写计划任务定期清理旧档。
 

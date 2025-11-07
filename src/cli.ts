@@ -1,8 +1,5 @@
 #!/usr/bin/env node
 
-import { register } from 'ts-node';
-register({ compilerOptions: { module: 'CommonJS' }, transpileOnly: true }); // 注册 TS 解析
-
 import { program } from 'commander';
 import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
