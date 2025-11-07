@@ -113,3 +113,62 @@ export default function viteAutoDeploy(options: AutoDeployOptions): Plugin {
     },
   };
 }
+
+
+
+
+// 回滚函数
+export async function rollback(options: AutoDeployOptions) {
+  // 1. 初始化配置（同部署逻辑）
+  if (!options.remoteIp) throw new Error(chalk.red('❌ 缺少 remoteIp'));
+  if (!options.remoteDir) throw new Error(chalk.red('❌ 缺少 remoteDir'));
+
+  const config: AutoDeployOptions & {
+    remoteUser: string;
+    remotePort: string;
+    backupDir: string;
+  } = {
+    remoteUser: 'root',
+    remotePort: '22',
+    backupDir: `${options.remoteDir}_backups`,
+    ...options,
+  };
+
+  const sshBase = `ssh -p ${config.remotePort} ${
+    config.privateKey ? `-i ${config.privateKey} ` : ''
+  }${config.remoteUser}@${config.remoteIp}`;
+
+  try {
+    // 2. 获取服务器上的备份列表（按时间倒序）
+    console.log(chalk.blue('📂 获取备份列表...'));
+    const backupsOutput = execSync(
+      `${sshBase} "ls -t ${config.backupDir}/*.tar.gz"`, // -t 按修改时间倒序
+      { encoding: 'utf-8' }
+    );
+    const backups = backupsOutput.trim().split('\n').filter(Boolean);
+
+    if (backups.length === 0) {
+      throw new Error('没有找到备份文件，请先部署至少一次');
+    }
+
+    // 3. 选择回滚版本（默认选最新的第一个备份）
+    console.log(chalk.yellow('🔍 可用的备份版本：'));
+    backups.forEach((backup, index) => {
+      console.log(`  ${index + 1}. ${backup}`);
+    });
+    const targetBackup = backups[0]; // 默认回滚到最新备份
+    console.log(chalk.green(`✓ 选择回滚到：${targetBackup}`));
+
+    // 4. 执行回滚（解压备份到当前目录，覆盖现有文件）
+    console.log(chalk.yellow('⏳ 正在回滚...'));
+    execSync(
+      `${sshBase} "tar -zxvf ${targetBackup} -C ${config.remoteDir}"`, // -C 指定解压到目标目录
+      { stdio: 'inherit' }
+    );
+
+    console.log(chalk.green('✅ 回滚成功！已恢复到：', targetBackup));
+  } catch (error) {
+    console.error(chalk.red('❌ 回滚失败：'), (error as Error).message);
+    process.exit(1);
+  }
+}
