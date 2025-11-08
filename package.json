@@ -6,6 +6,7 @@
   },
   "description": "Vite 自动部署插件",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "keywords": [
     "vite",
@@ -33,5 +34,8 @@
   },
   "scripts": {
     "build": "tsc"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }
