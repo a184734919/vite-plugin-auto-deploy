@@ -1,0 +1,24 @@
+# 排除 source map 文件（运行时不需要）
+*.map
+*.d.ts.map
+
+# 排除开发文件
+src/
+tsconfig.json
+*.tsbuildinfo
+
+# 排除测试文件
+test/
+tests/
+*.test.ts
+*.spec.ts
+
+# 排除其他开发文件
+.git/
+.gitignore
+.vscode/
+.idea/
+*.log
+*.md
+!README.md
+

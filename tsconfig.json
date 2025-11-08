@@ -5,7 +5,7 @@
     "outDir": "dist",            // 输出目录
     "rootDir": "src",            // 源码目录
     "declaration": true,         // 生成类型声明文件
-    "declarationMap": true,      // 生成声明文件的 sourceMap
+    "declarationMap": false,     // 不生成声明文件的 sourceMap（减小包体积）
     "strict": true,              // 开启严格模式
     "esModuleInterop": true,     // 兼容 CommonJS
     "skipLibCheck": true,        // 跳过库类型检查
